@@ -26,11 +26,6 @@
       "static/chunks/main-app.js",
       "static/chunks/app/booking/page.js"
     ],
-    "/history/page": [
-      "static/chunks/webpack.js",
-      "static/chunks/main-app.js",
-      "static/chunks/app/history/page.js"
-    ],
     "/schedule/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
