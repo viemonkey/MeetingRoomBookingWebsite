@@ -1,8 +1,8 @@
-// File: C:\MeetingRoomBookingWebsite\MeetingRoomBookingWebsite_FE\app\schedule\page.tsx
-import * as entry from '../../../../app/schedule/page.js'
+// File: C:\MeetingRoomBookingWebsite\MeetingRoomBookingWebsite_FE\app\history\page.tsx
+import * as entry from '../../../../app/history/page.js'
 import type { ResolvingMetadata, ResolvingViewport } from 'next/dist/lib/metadata/types/metadata-interface.js'
 
-type TEntry = typeof import('../../../../app/schedule/page.js')
+type TEntry = typeof import('../../../../app/history/page.js')
 
 // Check that the entry is a valid entry
 checkFields<Diff<{
