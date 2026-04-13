@@ -1,20 +1,13 @@
-const bcrypt = require('bcryptjs')
-const jwt = require('jsonwebtoken')
+const jwt  = require('jsonwebtoken')
 const { validationResult } = require('express-validator')
-const UserModel = require('../models/userModel')
+const User = require('../models/userModel')
 
-// Tạo JWT token
 function createToken(userId) {
-  return jwt.sign(
-    { id: userId },
-    process.env.JWT_SECRET,
-    { expiresIn: process.env.JWT_EXPIRES_IN }
-  )
+  return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN })
 }
 
 // POST /api/auth/register
 async function register(req, res) {
-  // Validate input
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
     return res.status(400).json({
@@ -27,8 +20,7 @@ async function register(req, res) {
   const { fullName, email, department, password } = req.body
 
   try {
-    // Kiểm tra email đã tồn tại chưa
-    const existing = UserModel.findByEmail(email)
+    const existing = await User.findOne({ email: email.toLowerCase() })
     if (existing) {
       return res.status(409).json({
         success: false,
@@ -37,28 +29,13 @@ async function register(req, res) {
       })
     }
 
-    // Hash password
-    const salt = await bcrypt.genSalt(12)
-    const hashedPassword = await bcrypt.hash(password, salt)
-
-    // Tạo user
-    const user = UserModel.create({
-      fullName: fullName.trim(),
-      email,
-      department,
-      password: hashedPassword,
-    })
-
-    // Tạo token
-    const token = createToken(user.id)
+    const user  = await User.create({ fullName, email, department, password })
+    const token = createToken(user._id)
 
     return res.status(201).json({
       success: true,
       message: 'Tạo tài khoản thành công',
-      data: {
-        token,
-        user: UserModel.safe(user),
-      },
+      data: { token, user: user.toSafeObject() },
     })
   } catch (err) {
     console.error('[register]', err)
@@ -80,34 +57,23 @@ async function login(req, res) {
   const { email, password } = req.body
 
   try {
-    // Tìm user
-    const user = UserModel.findByEmail(email)
+    // Phải dùng .select('+password') vì schema có select: false
+    const user = await User.findOne({ email: email.toLowerCase() }).select('+password')
     if (!user) {
-      return res.status(401).json({
-        success: false,
-        message: 'Email hoặc mật khẩu không đúng',
-      })
+      return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' })
     }
 
-    // Kiểm tra password
-    const isMatch = await bcrypt.compare(password, user.password)
+    const isMatch = await user.comparePassword(password)
     if (!isMatch) {
-      return res.status(401).json({
-        success: false,
-        message: 'Email hoặc mật khẩu không đúng',
-      })
+      return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' })
     }
 
-    // Tạo token
-    const token = createToken(user.id)
+    const token = createToken(user._id)
 
     return res.status(200).json({
       success: true,
       message: 'Đăng nhập thành công',
-      data: {
-        token,
-        user: UserModel.safe(user),
-      },
+      data: { token, user: user.toSafeObject() },
     })
   } catch (err) {
     console.error('[login]', err)
@@ -115,22 +81,14 @@ async function login(req, res) {
   }
 }
 
-// GET /api/auth/me  (cần token)
-function getMe(req, res) {
-  return res.status(200).json({
-    success: true,
-    data: { user: UserModel.safe(req.user) },
-  })
+// GET /api/auth/me
+async function getMe(req, res) {
+  return res.status(200).json({ success: true, data: { user: req.user.toSafeObject() } })
 }
 
 // POST /api/auth/logout
 function logout(req, res) {
-  // JWT stateless — client xoá token là xong
-  // Nếu cần blacklist token thì lưu vào Redis
-  return res.status(200).json({
-    success: true,
-    message: 'Đăng xuất thành công',
-  })
+  return res.status(200).json({ success: true, message: 'Đăng xuất thành công' })
 }
 
 module.exports = { register, login, getMe, logout }

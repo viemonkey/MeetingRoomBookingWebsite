@@ -27,7 +27,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* TopNavBar */}
       <header className="bg-[#f7f9fb] flex justify-between items-center w-full px-8 py-3 h-16 fixed top-0 z-50">
         <div className="flex items-center gap-8">
-          <span className="text-xl font-black text-[#001148] uppercase tracking-tighter">Nexus Terminal</span>
+          <span className="text-xl font-black text-[#001148] uppercase tracking-tighter">Vien Chi Bao</span>
           <div className="hidden md:flex items-center bg-[#eceef0] px-4 py-2 rounded-md gap-3 w-72">
             <span className="material-symbols-outlined text-[#43474f]" style={{fontSize:'18px'}}>search</span>
             <input className="bg-transparent border-none focus:ring-0 text-sm w-full outline-none" placeholder="Tìm kiếm phòng..." />

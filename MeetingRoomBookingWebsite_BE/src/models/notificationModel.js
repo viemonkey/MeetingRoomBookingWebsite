@@ -1,50 +1,14 @@
-// Lưu danh sách thông báo cho từng user
-const notifications = []
-const { v4: uuidv4 } = require('uuid')
+const mongoose = require('mongoose')
 
-module.exports = {
-  notifications,
+const notificationSchema = new mongoose.Schema({
+  userId:      { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  bookingId:   { type: mongoose.Schema.Types.ObjectId, ref: 'Booking' },
+  type:        { type: String, enum: ['reminder','success','conflict'], default: 'success' },
+  message:     { type: String, required: true },
+  scheduledAt: { type: Date, default: Date.now },
+  read:        { type: Boolean, default: false },
+}, { timestamps: true })
 
-  create({ userId, bookingId, type, message, scheduledAt }) {
-    const n = {
-      id: uuidv4(),
-      userId,
-      bookingId,
-      type,       // 'reminder' | 'conflict' | 'success'
-      message,
-      scheduledAt,
-      read: false,
-      createdAt: new Date().toISOString(),
-    }
-    notifications.push(n)
-    return n
-  },
+notificationSchema.index({ userId: 1, createdAt: -1 })
 
-  findByUser(userId) {
-    return notifications
-      .filter(n => n.userId === userId)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
-  },
-
-  markRead(id, userId) {
-    const n = notifications.find(n => n.id === id && n.userId === userId)
-    if (n) n.read = true
-    return n
-  },
-
-  markAllRead(userId) {
-    notifications.filter(n => n.userId === userId).forEach(n => { n.read = true })
-  },
-
-  unreadCount(userId) {
-    return notifications.filter(n => n.userId === userId && !n.read).length
-  },
-
-  deleteByBooking(bookingId) {
-    const idxs = notifications.reduce((acc, n, i) => {
-      if (n.bookingId === bookingId) acc.push(i)
-      return acc
-    }, [])
-    idxs.reverse().forEach(i => notifications.splice(i, 1))
-  },
-}
+module.exports = mongoose.model('Notification', notificationSchema)

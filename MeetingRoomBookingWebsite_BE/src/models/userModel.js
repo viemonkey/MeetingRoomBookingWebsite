@@ -1,32 +1,31 @@
-// In-memory store — thay bằng database (MongoDB/PostgreSQL) sau
-const users = []
+const mongoose = require('mongoose')
+const bcrypt   = require('bcryptjs')
 
-module.exports = {
-  users,
+const userSchema = new mongoose.Schema({
+  fullName:   { type: String, required: true, trim: true },
+  email:      { type: String, required: true, unique: true, lowercase: true, trim: true },
+  department: { type: String, required: true },
+  password:   { type: String, required: true, select: false }, // không trả về password mặc định
+}, { timestamps: true })
 
-  findByEmail(email) {
-    return users.find(u => u.email === email.toLowerCase()) || null
-  },
+// Hash password trước khi lưu
+userSchema.pre('save', async function(next) {
+  if (!this.isModified('password')) return next()
+  const salt = await bcrypt.genSalt(12)
+  this.password = await bcrypt.hash(this.password, salt)
+  next()
+})
 
-  findById(id) {
-    return users.find(u => u.id === id) || null
-  },
-
-  create(userData) {
-    const user = {
-      id: require('uuid').v4(),
-      ...userData,
-      email: userData.email.toLowerCase(),
-      createdAt: new Date().toISOString(),
-    }
-    users.push(user)
-    return user
-  },
-
-  // Trả về user không có password
-  safe(user) {
-    if (!user) return null
-    const { password, ...safe } = user
-    return safe
-  },
+// So sánh password
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  return bcrypt.compare(candidatePassword, this.password)
 }
+
+// Trả về user không có password
+userSchema.methods.toSafeObject = function() {
+  const obj = this.toObject()
+  delete obj.password
+  return obj
+}
+
+module.exports = mongoose.model('User', userSchema)
