@@ -21,20 +21,20 @@
       "static/chunks/main-app.js",
       "static/chunks/app/booking/page.js"
     ],
-    "/history/page": [
+    "/register/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/history/page.js"
+      "static/chunks/app/register/page.js"
     ],
     "/schedule/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
       "static/chunks/app/schedule/page.js"
     ],
-    "/register/page": [
+    "/history/page": [
       "static/chunks/webpack.js",
       "static/chunks/main-app.js",
-      "static/chunks/app/register/page.js"
+      "static/chunks/app/history/page.js"
     ]
   }
 }

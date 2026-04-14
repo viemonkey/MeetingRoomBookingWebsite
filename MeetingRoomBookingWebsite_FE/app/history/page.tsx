@@ -1,24 +1,21 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
+import { RefreshCw, FileText, Calendar, Clock, Upload, CheckCircle2, Trash2 } from 'lucide-react'
 import DashboardLayout from '@/components/DashboardLayout'
 import { getMyBookingsApi, deleteBookingApi, uploadMinutesApi, getUser } from '@/lib/authService'
 
-type Filter = 'all' | 'upcoming' | 'done'
+const tabs = ['Tất cả', 'Sắp tới', 'Đã qua']
 
 export default function HistoryPage() {
   const router = useRouter()
   const user = getUser()
   const [bookings, setBookings] = useState<any[]>([])
-  const [filter, setFilter] = useState<Filter>('all')
-  const [filterRoom, setFilterRoom] = useState('')
+  const [activeTab, setActiveTab] = useState('Tất cả')
   const [loading, setLoading] = useState(true)
-  const [uploading, setUploading] = useState<string|null>(null)
+  const [uploading, setUploading] = useState<string | null>(null)
 
-  useEffect(() => {
-    if (!user) { router.push('/login'); return }
-    load()
-  }, [])
+  useEffect(() => { if (!user) router.push('/login'); else load() }, [])
 
   async function load() {
     setLoading(true)
@@ -30,22 +27,24 @@ export default function HistoryPage() {
   async function handleDelete(id: string) {
     if (!confirm('Xoá lịch đặt này?')) return
     const res = await deleteBookingApi(id)
-    if (res.success) setBookings(prev => prev.filter(b => b.id !== id))
+    if (res.success) setBookings(prev => prev.filter(b => b.id !== id && b._id !== id))
     else alert(res.message)
   }
 
   async function handleUpload(id: string, file: File) {
+    if (!file.name.match(/\.(doc|docx)$/i)) { alert('Chỉ chấp nhận .doc hoặc .docx'); return }
     setUploading(id)
     const res = await uploadMinutesApi(id, file)
-    if (res.success) {
-      setBookings(prev => prev.map(b => b.id === id ? { ...b, minutesFile: res.data.fileName } : b))
-    } else { alert(res.message) }
+    if (res.success) setBookings(prev => prev.map(b => (b.id === id || b._id === id) ? { ...b, minutesFile: res.data.fileName } : b))
+    else alert(res.message)
     setUploading(null)
   }
 
-  const filtered = bookings
-    .filter(b => filter === 'all' || (filter === 'upcoming' ? b.status === 'upcoming' : b.status === 'done'))
-    .filter(b => !filterRoom || b.room === filterRoom)
+  const filtered = bookings.filter(b => {
+    if (activeTab === 'Sắp tới') return b.status === 'upcoming' || b.status === 'ongoing'
+    if (activeTab === 'Đã qua') return b.status === 'done'
+    return true
+  })
 
   const totalHours = bookings.filter(b => b.status === 'done').reduce((acc, b) => {
     const [fh,fm] = b.timeFrom.split(':').map(Number)
@@ -53,167 +52,107 @@ export default function HistoryPage() {
     return acc + ((th*60+tm)-(fh*60+fm))/60
   }, 0)
 
+  const mostUsed = (() => {
+    const cnt: Record<string, number> = {}
+    bookings.forEach(b => { cnt[b.room] = (cnt[b.room] || 0) + 1 })
+    const top = Object.entries(cnt).sort((a,b) => b[1]-a[1])[0]
+    return top ? (top[0] === 'tang5' ? 'Phòng họp lớn' : 'Phòng họp nhỏ') : '—'
+  })()
+
   return (
     <DashboardLayout>
-      <main className="flex-1 p-8">
-        {/* Header */}
-        <div className="flex justify-between items-start mb-10">
+      <div className="space-y-6 page-transition max-w-4xl mx-auto">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-4xl font-black text-on-background tracking-tight mb-2">Lịch sử đặt phòng</h1>
-            <p className="text-on-surface-variant">Quản lý, xem lại và nộp biên bản cuộc họp của bạn</p>
+            <h1 className="text-2xl font-bold text-foreground">Lịch sử đặt phòng</h1>
+            <p className="text-sm text-muted-foreground">Xem lại và quản lý các lần đặt phòng</p>
           </div>
-          <div className="flex gap-2">
-            <div className="bg-surface-container-low p-1.5 rounded-lg flex">
-              {(['all','upcoming','done'] as Filter[]).map(f => (
-                <button key={f} onClick={() => setFilter(f)}
-                  className={`px-4 py-1.5 text-xs font-bold uppercase tracking-widest rounded transition-all ${filter === f ? 'bg-white shadow-sm text-primary' : 'text-on-surface-variant hover:text-primary'}`}>
-                  {f === 'all' ? 'Tất cả' : f === 'upcoming' ? 'Sắp tới' : 'Đã qua'}
-                </button>
-              ))}
-            </div>
+          <div className="flex gap-1 p-1 rounded-xl bg-secondary">
+            {tabs.map(tab => (
+              <button key={tab} onClick={() => setActiveTab(tab)}
+                className={`px-4 py-1.5 rounded-lg text-sm font-semibold transition-all ${activeTab === tab ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}>
+                {tab}
+              </button>
+            ))}
           </div>
         </div>
 
-        {/* Stats + Filter */}
-        <div className="grid grid-cols-12 gap-6 mb-8">
-          <div className="col-span-8 bg-surface-container-low rounded-xl p-6 flex items-center gap-8">
-            <div>
-              <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter mb-1">Hạng mục phòng</label>
-              <select value={filterRoom} onChange={e => setFilterRoom(e.target.value)}
-                className="bg-transparent border-none text-sm font-semibold text-primary focus:ring-0 outline-none cursor-pointer">
-                <option value="">Tất cả phòng họp</option>
-                <option value="tang5">Phòng tầng 5</option>
-                <option value="tang6">Phòng tầng 6</option>
-              </select>
-            </div>
-            <div className="h-8 w-px bg-outline-variant/30" />
-            <div>
-              <label className="block text-[10px] font-bold text-on-surface-variant uppercase tracking-tighter mb-1">Tổng lịch</label>
-              <p className="text-sm font-bold text-primary">{bookings.length} lần đặt</p>
-            </div>
-            <div className="ml-auto">
-              <button onClick={load} className="bg-primary text-white px-5 py-2 rounded-md text-sm font-bold flex items-center gap-2 hover:opacity-90 transition-opacity">
-                <span className="material-symbols-outlined" style={{fontSize:'16px'}}>refresh</span> Làm mới
-              </button>
-            </div>
+        {/* Stats */}
+        <div className="grid grid-cols-2 gap-4 animate-fade-in">
+          <div className="rounded-2xl bg-primary p-5 text-primary-foreground">
+            <p className="text-xs font-semibold opacity-70">Tổng giờ đã họp</p>
+            <p className="text-3xl font-bold mt-1">{totalHours.toFixed(1)} Giờ</p>
+            <p className="text-xs opacity-60 mt-1">{bookings.filter(b => b.status==='done').length} cuộc họp</p>
           </div>
-
-          <div className="col-span-4 bg-primary-container text-white rounded-xl p-6 relative overflow-hidden group">
-            <div className="relative z-10">
-              <p className="text-[10px] font-bold text-on-primary-container uppercase tracking-widest mb-1">Tổng giờ đã họp</p>
-              <h3 className="text-3xl font-black text-on-primary-container">{totalHours.toFixed(1)} Giờ</h3>
-              <p className="text-xs text-on-primary-container mt-2">{bookings.filter(b=>b.status==='done').length} cuộc họp đã hoàn thành</p>
-            </div>
-            <div className="absolute -right-4 -bottom-4 opacity-10 group-hover:scale-110 transition-transform duration-500">
-              <span className="material-symbols-outlined" style={{fontSize:'80px'}}>query_stats</span>
-            </div>
+          <div className="rounded-2xl bg-card border border-border p-5">
+            <p className="text-xs font-semibold text-muted-foreground">Phòng sử dụng nhiều nhất</p>
+            <p className="text-lg font-bold text-foreground mt-1">{mostUsed}</p>
+            <p className="text-xs text-muted-foreground mt-1">{bookings.length} lịch đặt tổng cộng</p>
           </div>
         </div>
 
         {/* List */}
-        {loading ? (
-          <div className="text-center py-12 text-on-surface-variant">Đang tải...</div>
-        ) : (
-          <div className="bg-surface-container rounded-2xl overflow-hidden">
-            <div className="grid grid-cols-12 px-8 py-4 text-[10px] font-bold text-on-surface-variant uppercase tracking-widest bg-surface-container-high/50">
-              <div className="col-span-4">Cuộc họp &amp; Phòng</div>
-              <div className="col-span-3">Ngày &amp; Giờ</div>
-              <div className="col-span-2">Trạng thái</div>
-              <div className="col-span-3 text-right">Thao tác</div>
-            </div>
-
-            {filtered.length === 0 ? (
-              <div className="text-center py-16 text-on-surface-variant text-sm">Không có lịch đặt phòng nào</div>
-            ) : (
-              <div className="space-y-px">
-                {filtered.map(b => (
-                  <BookingRow key={b.id} booking={b} uploading={uploading === b.id}
-                    onDelete={handleDelete} onUpload={handleUpload} />
-                ))}
-              </div>
-            )}
+        <div className="space-y-3 animate-fade-in-up">
+          <div className="flex items-center justify-between">
+            <p className="text-sm font-semibold text-foreground">{filtered.length} lịch đặt</p>
+            <button onClick={load} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-secondary transition-colors">
+              <RefreshCw className="h-3.5 w-3.5" /> Làm mới
+            </button>
           </div>
-        )}
-      </main>
+
+          {loading ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">Đang tải...</div>
+          ) : filtered.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground text-sm">Chưa có lịch đặt phòng nào</div>
+          ) : filtered.map(b => (
+            <BookingItem key={b.id || b._id} booking={b} uploading={uploading === (b.id || b._id)}
+              onDelete={() => handleDelete(b.id || b._id)}
+              onUpload={file => handleUpload(b.id || b._id, file)} />
+          ))}
+        </div>
+      </div>
     </DashboardLayout>
   )
 }
 
-function BookingRow({ booking: b, uploading, onDelete, onUpload }: any) {
+function BookingItem({ booking: b, uploading, onDelete, onUpload }: { booking: any; uploading: boolean; onDelete: () => void; onUpload: (f: File) => void }) {
   const fileRef = useRef<HTMLInputElement>(null)
-  const isUpcoming = b.status === 'upcoming'
-  const isOngoing  = b.status === 'ongoing'
-  const roomLabel  = b.room === 'tang5' ? 'Tầng 5 · Aurora' : 'Tầng 6 · Zenith'
-  const roomColor  = b.room === 'tang5' ? '#004ced' : '#6366f1'
-
-  const dur = (() => {
-    const [fh,fm] = b.timeFrom.split(':').map(Number)
-    const [th,tm] = b.timeTo.split(':').map(Number)
-    return (th*60+tm)-(fh*60+fm)
-  })()
-
-  const badge = isOngoing  ? { label:'ĐANG HỌP', cls:'bg-amber-100 text-amber-800' }
-               : isUpcoming ? { label:'SẮP TỚI',  cls:'bg-secondary-container text-on-secondary-container' }
-               : { label:'ĐÃ QUA', cls:'bg-surface-container-high text-on-surface-variant' }
+  const isUpcoming = b.status === 'upcoming' || b.status === 'ongoing'
+  const roomName = b.room === 'tang5' ? 'Phòng họp lớn · Tầng 5' : 'Phòng họp nhỏ · Tầng 6'
 
   return (
-    <div className={`grid grid-cols-12 px-8 py-5 items-center bg-surface-container-lowest hover:bg-surface-bright transition-colors group relative ${!isUpcoming && !isOngoing ? 'opacity-75' : ''}`}>
-      <div className="absolute left-0 top-0 bottom-0 w-1 opacity-0 group-hover:opacity-100 transition-opacity" style={{background: roomColor}} />
-
-      <div className="col-span-4 flex items-center gap-4">
-        <div className={`h-11 w-11 rounded-lg bg-surface-container-high flex items-center justify-center flex-shrink-0 ${!isUpcoming && !isOngoing ? 'opacity-50' : ''}`} style={{color: roomColor}}>
-          <span className="material-symbols-outlined" style={{fontSize:'20px', fontVariationSettings:"'FILL' 1"}}>
-            {b.room === 'tang5' ? 'videocam' : 'groups'}
-          </span>
-        </div>
-        <div className="min-w-0">
-          <h4 className="font-bold text-on-surface text-sm truncate">{b.reason}</h4>
-          <p className="text-xs text-on-surface-variant">{roomLabel}</p>
-          {b.minutesFile && (
-            <div className="flex items-center gap-1 mt-1">
-              <span className="material-symbols-outlined text-emerald-600" style={{fontSize:'12px'}}>description</span>
-              <span className="text-[10px] text-emerald-600 font-semibold truncate max-w-[140px]">{b.minutesFile}</span>
-            </div>
-          )}
-        </div>
+    <div className="rounded-2xl bg-card border border-border p-4 flex items-center gap-4 hover-lift cursor-pointer">
+      <div className={`flex h-11 w-11 items-center justify-center rounded-xl flex-shrink-0 ${isUpcoming ? 'bg-primary/10 text-primary' : 'bg-secondary text-muted-foreground'}`}>
+        <FileText className="h-5 w-5" />
       </div>
-
-      <div className="col-span-3">
-        <p className="text-sm font-semibold text-on-surface">{b.date}</p>
-        <p className="text-xs text-on-surface-variant">{b.timeFrom}–{b.timeTo} ({dur} phút)</p>
-        <p className="text-xs text-on-surface-variant opacity-60">{b.team}</p>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-bold text-foreground truncate">{b.reason}</p>
+        <p className="text-xs text-muted-foreground mt-0.5">{roomName}</p>
+        {b.minutesFile && (
+          <p className="text-xs text-primary font-medium mt-1 flex items-center gap-1"><CheckCircle2 className="h-3 w-3" />{b.minutesFile}</p>
+        )}
       </div>
-
-      <div className="col-span-2">
-        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-tighter ${badge.cls}`}>
-          {badge.label}
-        </span>
+      <div className="hidden sm:flex items-center gap-4 text-xs text-muted-foreground flex-shrink-0">
+        <span className="flex items-center gap-1"><Calendar className="h-3.5 w-3.5" />{b.date}</span>
+        <span className="flex items-center gap-1"><Clock className="h-3.5 w-3.5" />{b.timeFrom}–{b.timeTo}</span>
       </div>
-
-      <div className="col-span-3 flex justify-end gap-2">
-        {/* Nộp biên bản — chỉ khi đã qua */}
-        {!isUpcoming && !isOngoing && (
+      <span className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold flex-shrink-0 ${isUpcoming ? 'bg-primary/10 text-primary' : 'bg-secondary text-muted-foreground'}`}>
+        {b.status === 'ongoing' ? 'Đang họp' : isUpcoming ? 'Sắp tới' : 'Đã qua'}
+      </span>
+      <div className="flex items-center gap-2 flex-shrink-0">
+        {!isUpcoming && (
           <>
             <input ref={fileRef} type="file" accept=".doc,.docx" className="hidden"
-              onChange={e => { if (e.target.files?.[0]) onUpload(b.id, e.target.files[0]); if(e.target) e.target.value='' }} />
-            <button onClick={() => fileRef.current?.click()} disabled={uploading}
-              title={b.minutesFile ? `Đã nộp: ${b.minutesFile}` : 'Nộp biên bản họp (.docx)'}
-              className={`h-9 px-3 flex items-center gap-1.5 rounded text-xs font-bold transition-all ${
-                b.minutesFile
-                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                  : 'bg-surface-container-low text-on-surface-variant hover:text-primary hover:bg-surface-container-high'
-              }`}>
-              <span className="material-symbols-outlined" style={{fontSize:'14px'}}>{b.minutesFile ? 'task_alt' : 'upload_file'}</span>
-              {uploading ? '...' : b.minutesFile ? 'Đã nộp' : 'Biên bản'}
+              onChange={e => { if (e.target.files?.[0]) onUpload(e.target.files[0]); if(e.target) e.target.value = '' }} />
+            <button onClick={() => fileRef.current?.click()} disabled={uploading} title="Nộp biên bản"
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors ${b.minutesFile ? 'bg-primary/10 text-primary' : 'border border-border hover:bg-secondary text-muted-foreground hover:text-foreground'}`}>
+              {uploading ? '...' : b.minutesFile ? <><CheckCircle2 className="h-3.5 w-3.5" />Đã nộp</> : <><Upload className="h-3.5 w-3.5" />Biên bản</>}
             </button>
           </>
         )}
-
-        {/* Xoá — chỉ khi chưa họp */}
-        {(isUpcoming || isOngoing) && (
-          <button onClick={() => onDelete(b.id)}
-            className="h-9 w-9 flex items-center justify-center rounded bg-surface-container-low text-on-surface-variant hover:text-error hover:bg-error-container transition-all">
-            <span className="material-symbols-outlined" style={{fontSize:'16px'}}>delete</span>
+        {isUpcoming && (
+          <button onClick={onDelete} className="p-2 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors">
+            <Trash2 className="h-4 w-4" />
           </button>
         )}
       </div>

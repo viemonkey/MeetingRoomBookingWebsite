@@ -1,132 +1,131 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react'
 import DashboardLayout from '@/components/DashboardLayout'
+import { getBookingsApi } from '@/lib/authService'
 
-const HOURS = ['08:00 AM','09:00 AM','10:00 AM','11:00 AM','12:00 PM','01:00 PM','02:00 PM','03:00 PM','04:00 PM','05:00 PM']
-
-const rooms = [
-  {
-    floor: 'TẦNG 5', name: 'The Vault', type: 'teal',
-    slots: [
-      { top: 0, height: 192, title: 'Q4 Strategy Review', person: 'Elena Rodriguez', tag: 'Liên kết trực tuyến đang hoạt động', tagIcon: 'videocam', dark: true },
-      { top: 192, height: 96, title: null, empty: true },
-      { top: 288, height: 144, title: 'UI/UX Sync', person: 'Design Team', dark: false },
-      { top: 432, height: null, title: null, empty: true, last: true },
-    ]
-  },
-  {
-    floor: 'TẦNG 5', name: 'Sky Lounge', type: 'teal',
-    slots: [
-      { top: 0, height: 96, title: null, empty: true },
-      { top: 96, height: 288, title: 'Board Selection', person: 'Executive Committee', tag: 'Phiên họp riêng tư', tagIcon: 'lock', dark: true, private: true },
-    ]
-  },
-  {
-    floor: 'TẦNG 6', name: 'Prism Hub', type: 'blue',
-    slots: [
-      { top: 0, height: 480, title: null, empty: true, nextTime: '01:00 PM' },
-      { top: 480, height: 192, title: 'Dev Ops Sync', person: 'Marc Chen', dark: true },
-    ]
-  },
-  {
-    floor: 'TẦNG 6', name: 'The Atrium', type: 'blue',
-    slots: [
-      { top: 0, height: null, title: null, empty: true, noBooking: true, last: true },
-    ]
-  },
+const roomDefs = [
+  { id: 'tang5', name: 'Phòng họp lớn', floor: 'Tầng 5', color: 'bg-primary', textColor: 'text-primary-foreground' },
+  { id: 'tang6', name: 'Phòng họp nhỏ', floor: 'Tầng 6', color: 'bg-accent', textColor: 'text-accent-foreground' },
 ]
+const hours = Array.from({ length: 11 }, (_, i) => { const h = i + 8; return `${h.toString().padStart(2,'0')}:00` })
+const eventColors = ['bg-primary', 'bg-accent', 'bg-primary/80', 'bg-accent/80']
+
+function addDays(d: string, n: number) {
+  const dt = new Date(d + 'T00:00:00'); dt.setDate(dt.getDate() + n)
+  return `${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`
+}
+function formatDateVN(d: string) {
+  const dt = new Date(d + 'T00:00:00')
+  const days = ['Chủ nhật','Thứ Hai','Thứ Ba','Thứ Tư','Thứ Năm','Thứ Sáu','Thứ Bảy']
+  return `${days[dt.getDay()]}, ${String(dt.getDate()).padStart(2,'0')} Tháng ${dt.getMonth()+1}, ${dt.getFullYear()}`
+}
 
 export default function SchedulePage() {
-  const [currentDate, setCurrentDate] = useState('24 Tháng 10, 2023')
+  const [date, setDate] = useState(new Date().toISOString().split('T')[0])
+  const [bookings, setBookings] = useState<any[]>([])
+
+  useEffect(() => { load(date) }, [date])
+
+  async function load(d: string) {
+    const res = await getBookingsApi(d)
+    if (res.success) setBookings(res.data)
+  }
+
+  function getEvent(roomId: string, hourStr: string) {
+    const [h] = hourStr.split(':').map(Number)
+    return bookings.find(b => {
+      if (b.room !== roomId) return false
+      const [fh] = b.timeFrom.split(':').map(Number)
+      const [th] = b.timeTo.split(':').map(Number)
+      return h >= fh && h < th
+    })
+  }
+  function isOccupied(roomId: string, hourStr: string) {
+    const [h] = hourStr.split(':').map(Number)
+    return bookings.some(b => {
+      if (b.room !== roomId) return false
+      const [fh] = b.timeFrom.split(':').map(Number)
+      const [th] = b.timeTo.split(':').map(Number)
+      return h > fh && h < th
+    })
+  }
+  function getEventDuration(b: any) {
+    const [fh,fm] = b.timeFrom.split(':').map(Number)
+    const [th,tm] = b.timeTo.split(':').map(Number)
+    return ((th*60+tm) - (fh*60+fm)) / 60
+  }
 
   return (
     <DashboardLayout>
-      <div className="pl-0 pt-0 h-[calc(100vh-64px)] flex flex-col bg-surface overflow-hidden">
-        {/* Header */}
-        <div className="px-8 py-6 flex justify-between items-end border-b border-surface-container-highest/30 bg-surface/50 backdrop-blur-md sticky top-0 z-30">
+      <div className="space-y-6 page-transition">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-primary">Lịch phòng họp tổng quát</h1>
-            <p className="text-on-surface-variant text-sm mt-1">Tình trạng sử dụng phòng thời gian thực tại Tầng 5 &amp; 6</p>
+            <h1 className="text-2xl font-bold text-foreground">Lịch phòng họp</h1>
+            <p className="text-sm text-muted-foreground">Theo dõi tình trạng sử dụng phòng theo thời gian thực</p>
           </div>
-          <div className="flex items-center bg-surface-container-low p-1 rounded-lg">
-            <button className="p-2 hover:bg-surface-container-lowest rounded-md transition-all">
-              <span className="material-symbols-outlined text-on-surface-variant" style={{fontSize:'20px'}}>chevron_left</span>
-            </button>
-            <div className="px-4 py-2 text-sm font-bold text-primary flex items-center gap-2">
-              <span className="material-symbols-outlined text-surface-tint" style={{fontSize:'18px'}}>calendar_today</span>
-              {currentDate}
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 rounded-xl border border-border bg-card px-3 py-2">
+              <button onClick={() => setDate(addDays(date,-1))} className="text-muted-foreground hover:text-foreground transition-colors"><ChevronLeft className="h-4 w-4" /></button>
+              <span className="text-sm font-semibold text-foreground min-w-[200px] text-center">{formatDateVN(date)}</span>
+              <button onClick={() => setDate(addDays(date,1))} className="text-muted-foreground hover:text-foreground transition-colors"><ChevronRight className="h-4 w-4" /></button>
             </div>
-            <button className="p-2 hover:bg-surface-container-lowest rounded-md transition-all">
-              <span className="material-symbols-outlined text-on-surface-variant" style={{fontSize:'20px'}}>chevron_right</span>
-            </button>
-          </div>
-          <div className="flex gap-3">
-            <Link href="/booking" className="flex items-center gap-2 bg-primary text-on-primary px-6 py-2.5 rounded-md font-bold text-sm shadow-lg shadow-primary/20 hover:scale-[1.02] transition-transform">
-              <span className="material-symbols-outlined" style={{fontSize:'16px'}}>add</span> Đặt phòng mới
+            <Link href="/booking" className="inline-flex items-center gap-1.5 bg-primary text-primary-foreground text-sm font-semibold rounded-xl px-4 py-2 hover:bg-primary/90 transition">
+              <Plus className="h-4 w-4" /> Đặt phòng
             </Link>
           </div>
         </div>
 
-        {/* Schedule Grid */}
-        <div className="flex-1 overflow-auto custom-scrollbar p-8">
-          <div className="inline-flex min-w-full">
-            {/* Time Column */}
-            <div className="flex flex-col pt-16 sticky left-0 z-20 bg-surface">
-              <div className="h-12 w-20"></div>
-              <div className="flex flex-col text-[10px] font-bold text-on-surface-variant/60 uppercase tracking-tighter">
-                {HOURS.map(h => (
-                  <div key={h} className="h-24 border-t border-outline-variant/10 flex items-start justify-center pt-2">{h}</div>
-                ))}
-              </div>
+        {/* Legend */}
+        <div className="flex items-center gap-4">
+          {roomDefs.map(r => <div key={r.id} className="flex items-center gap-2"><span className={`h-3 w-3 rounded-full ${r.color}`} /><span className="text-xs font-medium text-muted-foreground">{r.name}</span></div>)}
+          <div className="flex items-center gap-2 ml-auto"><span className="h-3 w-3 rounded-full bg-secondary border border-border" /><span className="text-xs font-medium text-muted-foreground">Trống</span></div>
+        </div>
+
+        {/* Grid */}
+        <div className="overflow-x-auto rounded-2xl border border-border bg-card animate-fade-in-up">
+          <div className="min-w-[500px]">
+            <div className="grid grid-cols-[72px_repeat(2,1fr)] border-b border-border">
+              <div className="bg-secondary/50 px-3 py-3 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-end">Giờ</div>
+              {roomDefs.map((room, i) => (
+                <div key={i} className={`border-l border-border ${room.color} px-4 py-3`}>
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-primary-foreground/70">{room.floor}</p>
+                  <p className="text-sm font-bold text-primary-foreground">{room.name}</p>
+                </div>
+              ))}
             </div>
 
-            {/* Room Columns */}
-            <div className="flex-1 flex gap-4">
-              {rooms.map((room, i) => (
-                <div key={i} className="w-64 flex flex-col">
-                  <div className={`h-16 p-4 rounded-t-xl mb-4 flex flex-col justify-center ${room.type === 'blue' ? 'bg-primary-container/10' : 'bg-surface-container'}`}>
-                    <span className="text-[10px] font-black text-surface-tint uppercase tracking-widest">{room.floor}</span>
-                    <h3 className="text-sm font-bold text-primary truncate">{room.name}</h3>
-                  </div>
-                  <div className="relative h-[960px] bg-surface-container-low/40 rounded-b-xl">
-                    {room.slots.map((slot, j) => {
-                      if (slot.empty) return (
-                        <div key={j} className={`absolute left-0 right-0 m-1 rounded-md border-2 border-dashed border-outline-variant/20 flex items-center justify-center group cursor-pointer hover:bg-white/50 transition-colors ${slot.last ? 'bottom-0' : ''}`}
-                          style={slot.last ? {top: slot.top} : {top: slot.top, height: slot.height ?? undefined}}>
-                          <div className="text-center">
-                            <span className="text-[10px] font-bold text-on-surface-variant/40 group-hover:text-surface-tint block">
-                              {slot.noBooking ? 'KHÔNG CÓ LỊCH HẸN HÔM NAY' : 'TRỐNG'}
-                            </span>
-                            {slot.nextTime && <span className="text-[8px] text-on-surface-variant/30">Tiếp theo: {slot.nextTime}</span>}
+            <div className="relative">
+              {hours.map((hour, i) => (
+                <div key={i} className="grid grid-cols-[72px_repeat(2,1fr)] h-14 border-b border-border/40 last:border-0">
+                  <div className="flex items-center justify-end pr-3 text-xs text-muted-foreground font-medium">{hour}</div>
+                  {roomDefs.map((room, ri) => {
+                    const event = getEvent(room.id, hour)
+                    const occupied = isOccupied(room.id, hour)
+                    if (occupied) return <div key={ri} className="border-l border-border/40" />
+                    const colorClass = eventColors[bookings.indexOf(event!) % eventColors.length] || 'bg-primary'
+                    return (
+                      <div key={ri} className="relative border-l border-border/40">
+                        {event ? (
+                          <div className={`absolute inset-x-1 top-0.5 ${colorClass} rounded-xl p-3 text-primary-foreground z-10 shadow-sm`}
+                            style={{ height: `${getEventDuration(event) * 56 - 4}px` }}>
+                            <p className="text-sm font-bold truncate">{event.reason}</p>
+                            <p className="text-xs opacity-75 mt-0.5 truncate">{event.userName} · {event.team}</p>
                           </div>
-                        </div>
-                      )
-                      return (
-                        <div key={j} className={`absolute left-0 right-0 p-4 rounded-md shadow-lg z-10 m-1 border-l-4 ${slot.dark ? 'bg-primary text-on-primary border-surface-tint' : 'bg-secondary-container text-on-secondary-container border-secondary'}`}
-                          style={{top: slot.top, height: slot.height ?? undefined}}>
-                          <h4 className="text-xs font-bold truncate">{slot.title}</h4>
-                          <p className="text-[10px] opacity-80 mt-1">{slot.person}</p>
-                          {slot.tag && (
-                            <div className="mt-auto pt-4 flex items-center gap-2" style={{color: slot.private ? '#b7c8e1' : undefined}}>
-                              <span className="material-symbols-outlined text-xs" style={{fontSize:'14px', fontVariationSettings:"'FILL' 1"}}>{slot.tagIcon}</span>
-                              <span className="text-[10px]">{slot.tag}</span>
-                            </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  </div>
+                        ) : (
+                          <div className="flex h-full items-center justify-center">
+                            <span className="text-[10px] font-medium text-muted-foreground/30">—</span>
+                          </div>
+                        )}
+                      </div>
+                    )
+                  })}
                 </div>
               ))}
             </div>
           </div>
         </div>
-
-        {/* FAB */}
-        <Link href="/booking" className="fixed bottom-10 right-10 w-14 h-14 bg-surface-tint text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 active:scale-95 transition-all z-50">
-          <span className="material-symbols-outlined" style={{fontSize:'28px'}}>add_location</span>
-        </Link>
       </div>
     </DashboardLayout>
   )

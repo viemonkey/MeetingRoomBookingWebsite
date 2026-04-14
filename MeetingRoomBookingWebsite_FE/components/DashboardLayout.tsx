@@ -1,104 +1,141 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { getUser, logoutApi } from '@/lib/authService'
-import NotificationBell from './NotificationBell'
+import { CalendarPlus, CalendarDays, Clock, LogOut, Bell, Menu, X } from 'lucide-react'
+import { useState, useEffect } from 'react'
+import { getUser, logoutApi, getNotificationsApi, markAllReadApi } from '@/lib/authService'
+
+const navItems = [
+  { label: 'Đặt phòng', icon: CalendarPlus, href: '/booking' },
+  { label: 'Lịch trình', icon: CalendarDays, href: '/schedule' },
+  { label: 'Lịch sử', icon: Clock, href: '/history' },
+]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const path   = usePathname()
+  const path = usePathname()
   const router = useRouter()
-  const user   = getUser()
+  const [user, setUser] = useState<any>(null)
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [unread, setUnread] = useState(0)
+  const [notifs, setNotifs] = useState<any[]>([])
+  const [notifOpen, setNotifOpen] = useState(false)
 
-  const navItems = [
-    { href:'/booking',  icon:'calendar_add_on', label:'Đặt phòng'  },
-    { href:'/schedule', icon:'event_note',       label:'Lịch trình' },
-    { href:'/history',  icon:'history',          label:'Lịch sử'    },
-  ]
+  useEffect(() => {
+    setUser(getUser())
+    loadNotifs()
+    const t = setInterval(loadNotifs, 30000)
+    return () => clearInterval(t)
+  }, [])
 
-  async function handleLogout() {
-    await logoutApi()
-    router.push('/login')
+  async function loadNotifs() {
+    const res = await getNotificationsApi().catch(() => null)
+    if (res?.success) { setNotifs(res.data); setUnread(res.unread) }
   }
 
+  async function handleLogout() { await logoutApi(); router.push('/login') }
+
   const initials = user?.fullName?.split(' ').map((n: string) => n[0]).slice(-2).join('').toUpperCase() || 'NT'
+  const pageTitle = navItems.find(n => n.href === path)?.label || 'Dashboard'
 
   return (
-    <div className="bg-surface text-on-surface min-h-screen overflow-x-hidden">
-      {/* TopNavBar */}
-      <header className="bg-[#f7f9fb] flex justify-between items-center w-full px-8 py-3 h-16 fixed top-0 z-50">
-        <div className="flex items-center gap-8">
-          <span className="text-xl font-black text-[#001148] uppercase tracking-tighter">Vien Chi Bao</span>
-          <div className="hidden md:flex items-center bg-[#eceef0] px-4 py-2 rounded-md gap-3 w-72">
-            <span className="material-symbols-outlined text-[#43474f]" style={{fontSize:'18px'}}>search</span>
-            <input className="bg-transparent border-none focus:ring-0 text-sm w-full outline-none" placeholder="Tìm kiếm phòng..." />
+    <div className="min-h-screen bg-background flex">
+      {/* Sidebar */}
+      <aside className={`fixed inset-y-0 left-0 z-50 w-60 bg-white border-r border-gray-100 shadow-sm flex flex-col transform transition-transform duration-300 md:translate-x-0 md:static ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+        <div className="flex items-center gap-3 px-5 py-6">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-primary-foreground flex-shrink-0">V</div>
+          <div>
+            <p className="text-sm font-bold text-sidebar-foreground">Viên Chi Bảo</p>
+            <p className="text-[10px] text-sidebar-foreground/50 font-medium">Quản lý phòng họp</p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          <nav className="hidden md:flex items-center gap-6">
-            {navItems.map(item => (
-              <Link key={item.href} href={item.href}
-                className={`text-sm font-bold tracking-tight py-5 transition-colors ${path === item.href ? 'text-[#004ced] border-b-2 border-[#004ced]' : 'text-[#43474f] hover:text-[#001148]'}`}>
+
+        <nav className="flex-1 px-3 space-y-1">
+          <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30">Menu</p>
+          {navItems.map(item => {
+            const active = path === item.href
+            return (
+              <Link key={item.href} href={item.href} onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${active ? 'bg-primary text-primary-foreground shadow-md' : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}>
+                <item.icon className="h-[18px] w-[18px]" />
                 {item.label}
               </Link>
-            ))}
-          </nav>
-          <NotificationBell />
-          <button className="material-symbols-outlined text-[#43474f] p-2 rounded-full hover:bg-[#eceef0] transition-colors" style={{fontSize:'20px'}}>settings</button>
-          <button onClick={handleLogout} title="Đăng xuất"
-            className="w-8 h-8 rounded-full bg-[#002277] flex items-center justify-center text-white text-xs font-bold hover:bg-[#001148] transition-colors">
-            {initials}
-          </button>
-        </div>
-      </header>
+            )
+          })}
+        </nav>
 
-      {/* Sidebar */}
-      <aside className="fixed left-0 top-16 bottom-0 z-40 w-64 bg-[#f2f4f6]/70 backdrop-blur-xl hidden lg:flex flex-col">
-        <div className="p-6">
-          <div className="flex items-center gap-3 mb-8">
-            <div className="w-10 h-10 rounded-lg bg-[#002277] flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
-              {initials}
-            </div>
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-[#001148] truncate">{user?.fullName || 'Người dùng'}</p>
-              <p className="text-[11px] text-[#43474f] truncate">{user?.department || 'Nội bộ'}</p>
+        <div className="p-4 border-t border-sidebar-border">
+          <div className="flex items-center gap-3 mb-3">
+            <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/20 text-xs font-bold text-primary flex-shrink-0">{initials}</div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-semibold text-sidebar-foreground truncate">{user?.fullName || 'Người dùng'}</p>
+              <p className="text-[11px] text-sidebar-foreground/40">{user?.department || 'Nội bộ'}</p>
             </div>
           </div>
-          <nav className="flex flex-col gap-1">
-            {navItems.map(item => {
-              const active = path === item.href
-              return (
-                <Link key={item.href} href={item.href}
-                  className={`flex items-center gap-3 px-4 py-3 rounded-md transition-all text-sm font-semibold ${active ? 'bg-white text-[#004ced] shadow-sm border-l-4 border-[#004ced]' : 'text-[#43474f] hover:bg-white/50'}`}>
-                  <span className="material-symbols-outlined" style={{fontSize:'20px'}}>{item.icon}</span>
-                  {item.label}
-                </Link>
-              )
-            })}
-          </nav>
-          <div className="mt-auto pt-8 border-t border-outline-variant/10 mt-8">
-            <button onClick={handleLogout}
-              className="flex items-center gap-3 px-4 py-3 rounded-md text-[#43474f] hover:bg-red-50 hover:text-red-600 transition-all w-full text-sm font-semibold">
-              <span className="material-symbols-outlined" style={{fontSize:'20px'}}>logout</span>
-              Đăng xuất
-            </button>
-          </div>
+          <button onClick={handleLogout} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors w-full">
+            <LogOut className="h-4 w-4" /> Đăng xuất
+          </button>
         </div>
       </aside>
 
-      {/* Main */}
-      <main className="lg:ml-64 pt-16">{children}</main>
+      {sidebarOpen && <div className="fixed inset-0 z-40 bg-foreground/30 md:hidden" onClick={() => setSidebarOpen(false)} />}
 
-      {/* Footer */}
-      <footer className="lg:ml-64 bg-[#f7f9fb] border-t border-[#43474f]/10 flex justify-between items-center px-8 py-4">
-        <div className="flex items-center gap-2">
-          <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></div>
-          <span className="text-[10px] tracking-widest uppercase text-[#43474f]">Trạng thái hệ thống: Hoạt động • v2.0.0</span>
-        </div>
-        <div className="flex gap-8">
-          <a className="text-[10px] tracking-widest uppercase text-[#43474f] opacity-60 hover:text-[#004ced]" href="#">Chính sách bảo mật</a>
-          <a className="text-[10px] tracking-widest uppercase text-[#43474f] opacity-60 hover:text-[#004ced]" href="#">Hỗ trợ</a>
-        </div>
-      </footer>
+      <div className="flex-1 flex flex-col min-h-screen">
+        {/* Topbar */}
+        <header className="sticky top-0 z-30 flex h-14 items-center justify-between px-4 md:px-6 bg-background/80 backdrop-blur-md border-b border-border">
+          <div className="flex items-center gap-3">
+            <button className="md:hidden p-2 rounded-lg text-muted-foreground hover:bg-secondary" onClick={() => setSidebarOpen(!sidebarOpen)}>
+              {sidebarOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+            </button>
+            <p className="text-sm font-semibold text-foreground hidden md:block">{pageTitle}</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground mr-2">
+              <span className="h-2 w-2 rounded-full bg-primary animate-pulse" /> Trực tuyến
+            </span>
+            {/* Notification bell */}
+            <div className="relative">
+              <button onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen && unread > 0) markAllReadApi().then(() => setUnread(0)) }}
+                className="relative p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors">
+                <Bell className="h-5 w-5" />
+                {unread > 0 && <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-destructive text-[9px] font-bold text-white flex items-center justify-center">{unread > 9 ? '9+' : unread}</span>}
+              </button>
+              {notifOpen && (
+                <div className="absolute right-0 top-full mt-2 w-80 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
+                  <div className="px-4 py-3 border-b border-border flex items-center justify-between">
+                    <span className="text-sm font-semibold text-foreground">Thông báo</span>
+                    <button onClick={() => setNotifOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="h-4 w-4" /></button>
+                  </div>
+                  <div className="max-h-72 overflow-y-auto">
+                    {notifs.length === 0 ? (
+                      <p className="text-sm text-muted-foreground text-center py-6">Chưa có thông báo</p>
+                    ) : notifs.slice(0, 10).map(n => (
+                      <div key={n.id || n._id} className={`px-4 py-3 border-b border-border/50 ${!n.read ? 'bg-primary/5' : ''}`}>
+                        <p className="text-xs text-foreground leading-relaxed">{n.message}</p>
+                        <p className="text-[10px] text-muted-foreground mt-1">{new Date(n.createdAt).toLocaleString('vi-VN')}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </header>
+
+        <main className="flex-1 p-4 md:p-6 overflow-auto">{children}</main>
+      </div>
+
+      {/* Mobile bottom nav */}
+      <nav className="fixed bottom-0 left-0 right-0 z-50 flex items-center justify-around border-t border-border bg-card/95 backdrop-blur-md py-2 md:hidden">
+        {navItems.map(item => {
+          const active = path === item.href
+          return (
+            <Link key={item.href} href={item.href} className={`flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+              <item.icon className={`h-5 w-5 ${active ? 'scale-110' : ''} transition-transform`} />
+              {item.label}
+            </Link>
+          )
+        })}
+      </nav>
     </div>
   )
 }

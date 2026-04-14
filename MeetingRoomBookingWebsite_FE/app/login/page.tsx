@@ -2,6 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
+import { Mail, Lock } from 'lucide-react'
 import { loginApi, saveToken, saveUser } from '@/lib/authService'
 
 export default function LoginPage() {
@@ -22,110 +23,107 @@ export default function LoginPage() {
         saveUser(res.data.user)
         router.push('/booking')
       } else {
-        setError(res.message || 'Đăng nhập thất bại')
+        setError(res.message || 'Email hoặc mật khẩu không đúng')
       }
     } catch {
-      setError('Không thể kết nối server. Vui lòng thử lại.')
+      setError('Không thể kết nối server')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen overflow-hidden selection:bg-[#71a9e8] selection:text-[#003d6a]" style={{backgroundColor:'#f0f2f5'}}>
-      <div className="fixed inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute inset-0" style={{background:'linear-gradient(to top right, #f0f2f5, #e5e9f0, #f8f9fc)'}}></div>
-        <div className="absolute inset-0 grid-pattern opacity-100"></div>
-        <div className="absolute top-[-10%] right-[15%] w-[300px] h-[300px] border border-[rgba(31,97,156,0.05)] rotate-45 pointer-events-none"></div>
-        <div className="absolute bottom-[-5%] left-[10%] w-[300px] h-[300px] border border-[rgba(31,97,156,0.05)] rotate-45 pointer-events-none"></div>
+    <div className="min-h-screen flex">
+      {/* Left panel — light gradient */}
+      <div className="hidden lg:flex lg:w-1/2 relative items-center justify-center overflow-hidden"
+        style={{ background: 'linear-gradient(135deg, #e8f5f0 0%, #f0f9f6 40%, #ede9fe 100%)' }}>
+        {/* Blobs */}
+        <div className="absolute top-16 left-16 w-64 h-64 rounded-full opacity-40"
+          style={{ background: 'radial-gradient(circle, #6ee7b7 0%, transparent 70%)' }} />
+        <div className="absolute bottom-24 right-12 w-80 h-80 rounded-full opacity-30"
+          style={{ background: 'radial-gradient(circle, #c4b5fd 0%, transparent 70%)' }} />
+
+        <div className="relative z-10 px-14 max-w-lg">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary text-base font-bold text-white shadow-md">V</div>
+            <span className="text-xl font-bold text-gray-800">Viên Chi Bảo</span>
+          </div>
+          <h2 className="text-4xl font-extrabold text-gray-900 leading-tight">
+            Quản lý phòng họp<br />
+            <span className="text-primary">thông minh.</span>
+          </h2>
+          <p className="mt-4 text-gray-500 leading-relaxed text-sm">
+            Đặt phòng nhanh chóng, theo dõi lịch trình và quản lý hiệu quả không gian làm việc của bạn.
+          </p>
+          <div className="mt-10 flex gap-8">
+            <div>
+              <p className="text-3xl font-bold text-primary">2</p>
+              <p className="text-xs text-gray-400 mt-1">Phòng họp</p>
+            </div>
+            <div className="w-px bg-gray-200" />
+            <div>
+              <p className="text-3xl font-bold text-primary">24/7</p>
+              <p className="text-xs text-gray-400 mt-1">Hỗ trợ</p>
+            </div>
+            <div className="w-px bg-gray-200" />
+            <div>
+              <p className="text-3xl font-bold text-primary">100%</p>
+              <p className="text-xs text-gray-400 mt-1">Bảo mật</p>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <main className="relative z-10 w-full max-w-md px-6">
-        <div className="mb-10 text-center space-y-2">
-          <h1 className="text-4xl font-black tracking-tighter text-slate-900 uppercase" style={{letterSpacing:'-0.05em'}}>
-            Nexus Terminal
-          </h1>
-          <p className="text-[10px] tracking-[0.4em] font-medium uppercase" style={{color:'rgba(31,97,156,0.6)'}}>
-            Architectural Neural Interface
-          </p>
-        </div>
+      {/* Right form */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-white">
+        <div className="w-full max-w-sm page-transition">
+          {/* Mobile logo */}
+          <div className="lg:hidden flex items-center gap-2 mb-8">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-sm font-bold text-white">V</div>
+            <span className="text-lg font-bold text-gray-800">Viên Chi Bảo</span>
+          </div>
 
-        <section className="glass-card rounded-xl p-10 md:p-12 relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-b from-white/20 to-transparent pointer-events-none"></div>
-          <header className="mb-10 relative z-10">
-            <h2 className="text-2xl font-bold text-slate-800 tracking-tight">Truy cập hệ thống</h2>
-            <p className="text-sm text-slate-500 font-light mt-1">Xác thực phiên làm việc để tiếp tục.</p>
-          </header>
+          <h1 className="text-2xl font-bold text-gray-900">Chào mừng trở lại</h1>
+          <p className="mt-1 text-sm text-gray-400">Đăng nhập để quản lý phòng họp</p>
 
           {error && (
-            <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2 relative z-10">
-              <span className="material-symbols-outlined text-red-500" style={{fontSize:'16px'}}>error</span>
-              <p className="text-red-600 text-sm font-medium">{error}</p>
-            </div>
+            <div className="mt-4 p-3 rounded-lg bg-red-50 border border-red-100 text-sm text-red-500 font-medium">{error}</div>
           )}
 
-          <form className="space-y-6 relative z-10" onSubmit={handleSubmit}>
-            <div className="space-y-2">
-              <label className="block text-[10px] uppercase tracking-[0.15em] font-bold text-slate-500 ml-1" htmlFor="email">
-                Email công việc
-              </label>
-              <input
-                id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)}
-                placeholder="name@nexus.terminal"
-                className="w-full bg-white/40 border border-slate-200 rounded-lg py-4 px-5 text-slate-900 placeholder:text-slate-400 font-medium text-sm transition-all input-focus-glow"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <div className="flex justify-between items-end px-1">
-                <label className="block text-[10px] uppercase tracking-[0.15em] font-bold text-slate-500" htmlFor="password">
-                  Mật khẩu
-                </label>
-                <a className="text-[10px] uppercase tracking-wider font-bold transition-colors duration-300" style={{color:'rgba(31,97,156,0.7)'}} href="#">
-                  Quên mật khẩu?
-                </a>
+          <form onSubmit={handleSubmit} className="mt-8 space-y-4">
+            <div>
+              <label className="mb-1.5 block text-xs font-medium text-gray-500">Email</label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+                <input type="email" placeholder="email@vienchibao.vn" value={email} onChange={e => setEmail(e.target.value)} required
+                  className="h-11 w-full pl-10 pr-4 rounded-lg border border-gray-200 bg-white text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition" />
               </div>
-              <input
-                id="password" type="password" required value={password} onChange={e => setPassword(e.target.value)}
-                placeholder="••••••••••••"
-                className="w-full bg-white/40 border border-slate-200 rounded-lg py-4 px-5 text-slate-900 placeholder:text-slate-400 font-medium text-sm transition-all input-focus-glow"
-              />
             </div>
 
-            <div className="pt-4">
-              <button
-                type="submit" disabled={loading}
-                className="w-full btn-gradient py-4 rounded-lg text-white font-bold text-sm tracking-wide shadow-lg hover:brightness-105 hover:-translate-y-px active:translate-y-px transition-all duration-300 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <><span className="material-symbols-outlined animate-spin" style={{fontSize:'18px'}}>progress_activity</span> Đang xác thực...</>
-                ) : 'Đăng nhập'}
-              </button>
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className="text-xs font-medium text-gray-500">Mật khẩu</label>
+                <a href="#" className="text-xs font-medium text-primary hover:underline">Quên?</a>
+              </div>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-300" />
+                <input type="password" placeholder="••••••••" value={password} onChange={e => setPassword(e.target.value)} required
+                  className="h-11 w-full pl-10 pr-4 rounded-lg border border-gray-200 bg-white text-sm text-gray-800 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition" />
+              </div>
             </div>
+
+            <button type="submit" disabled={loading}
+              className="w-full h-11 rounded-xl bg-primary text-white text-sm font-semibold hover:bg-primary/90 transition-all disabled:opacity-60 disabled:cursor-not-allowed mt-2 flex items-center justify-center gap-2 shadow-sm">
+              {loading ? <><span className="h-4 w-4 rounded-full border-2 border-white/30 border-t-white animate-spin" /> Đang xử lý...</> : 'Đăng nhập'}
+            </button>
           </form>
 
-          <footer className="mt-10 text-center relative z-10">
-            <p className="text-xs text-slate-500 font-medium">
-              Chưa có tài khoản?{' '}
-              <Link className="text-[#1f619c] font-bold hover:underline transition-colors ml-1" href="/register">
-                Đăng ký ngay
-              </Link>
-            </p>
-          </footer>
-        </section>
-
-        <div className="mt-12 flex justify-center items-center space-x-6">
-          <div className="flex items-center space-x-2">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" style={{boxShadow:'0 0 8px rgba(16,185,129,0.3)'}}></span>
-            <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">Hệ thống: Đang hoạt động</span>
-          </div>
-          <span className="h-px w-8 bg-slate-300"></span>
-          <div className="flex items-center space-x-2">
-            <span className="material-symbols-outlined text-slate-400" style={{fontSize:'14px'}}>verified_user</span>
-            <span className="text-[10px] text-slate-400 font-bold tracking-widest uppercase">Bảo mật xác minh</span>
-          </div>
+          <p className="mt-6 text-center text-sm text-gray-400">
+            Chưa có tài khoản?{' '}
+            <Link href="/register" className="font-semibold text-primary hover:underline">Đăng ký</Link>
+          </p>
         </div>
-      </main>
+      </div>
     </div>
   )
 }
