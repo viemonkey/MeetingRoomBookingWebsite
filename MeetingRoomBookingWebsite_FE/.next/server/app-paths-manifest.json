@@ -2,6 +2,7 @@
   "/login/page": "app/login/page.js",
   "/register/page": "app/register/page.js",
   "/schedule/page": "app/schedule/page.js",
+  "/admin/page": "app/admin/page.js",
   "/history/page": "app/history/page.js",
   "/booking/page": "app/booking/page.js"
 }

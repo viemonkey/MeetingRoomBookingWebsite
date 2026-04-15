@@ -6,7 +6,7 @@ function createToken(userId) {
   return jwt.sign({ id: userId }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRES_IN })
 }
 
-// POST /api/auth/register
+// POST /api/auth/register — status mặc định là 'pending'
 async function register(req, res) {
   const errors = validationResult(req)
   if (!errors.isEmpty()) {
@@ -29,12 +29,14 @@ async function register(req, res) {
       })
     }
 
+    // Tạo user với status: 'pending' (mặc định trong schema)
     const user  = await User.create({ fullName, email, department, password })
     const token = createToken(user._id)
 
     return res.status(201).json({
       success: true,
-      message: 'Tạo tài khoản thành công',
+      // Thông báo rõ là đang chờ duyệt
+      message: 'Đăng ký thành công! Tài khoản đang chờ admin duyệt.',
       data: { token, user: user.toSafeObject() },
     })
   } catch (err) {
@@ -57,7 +59,6 @@ async function login(req, res) {
   const { email, password } = req.body
 
   try {
-    // Phải dùng .select('+password') vì schema có select: false
     const user = await User.findOne({ email: email.toLowerCase() }).select('+password')
     if (!user) {
       return res.status(401).json({ success: false, message: 'Email hoặc mật khẩu không đúng' })

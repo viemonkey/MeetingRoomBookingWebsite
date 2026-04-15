@@ -13,10 +13,11 @@ const upload = multer({
   },
 })
 
-router.get('/',       ctrl.getAll)
-router.get('/my',     protect, ctrl.getMy)
-router.post('/',      protect, bookingValidation, ctrl.create)
-router.delete('/:id', protect, ctrl.remove)
+router.get('/',             ctrl.getAll)
+router.get('/my',           protect, ctrl.getMy)
+router.post('/',            protect, bookingValidation, ctrl.create)
+router.patch('/:id',        protect, ctrl.update)         // ← MỚI: sửa booking
+router.delete('/:id',       protect, ctrl.remove)
 router.post('/:id/minutes', protect, upload.single('file'), ctrl.uploadMinutes)
 
 module.exports = router

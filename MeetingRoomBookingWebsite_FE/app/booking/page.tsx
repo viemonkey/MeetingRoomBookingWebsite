@@ -3,7 +3,8 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Users, Monitor, MapPin, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
 import DashboardLayout from '@/components/DashboardLayout'
-import { createBookingApi, getBookingsApi, getUser } from '@/lib/authService'
+import toast from 'react-hot-toast'
+import { createBookingApi, getBookingsApi, getUser, isApproved } from '@/lib/authService'
 
 const rooms = [
   { id: 'tang5', name: 'Phòng họp lớn', floor: 'Tầng 5', capacity: 12, features: 'Màn hình 4K · Máy chiếu', img: 'https://images.unsplash.com/photo-1497366216548-37526070297c?w=600&q=80' },
@@ -26,6 +27,8 @@ export default function BookingPage() {
   const [conflict, setConflict] = useState<any>(null)
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [accountBlocked, setAccountBlocked] = useState(false)
+  const [accountMsg, setAccountMsg] = useState('')
   const today = new Date().toISOString().split('T')[0]
 
   useEffect(() => { if (!user) router.push('/login') }, [])
@@ -61,6 +64,12 @@ export default function BookingPage() {
       if (c) { setConflict(c); setStep(2); return }
 
       const res = await createBookingApi({ room: selectedRoom, team: user?.department || '', reason, note, date, timeFrom, timeTo })
+      if (res.accountStatus) {
+        // Tài khoản chưa được duyệt hoặc bị từ chối
+        setAccountBlocked(true)
+        setAccountMsg(res.message)
+        return
+      }
       if (res.success) {
         setSuccess(true)
         setTimeout(() => { setSuccess(false); setStep(1); setSelectedRoom(null); setDate(''); setTimeFrom(''); setTimeTo(''); setReason(''); setNote('') }, 3000)
@@ -68,7 +77,7 @@ export default function BookingPage() {
       } else if (res.conflict) {
         setConflict(res.conflict); setStep(2)
       } else {
-        alert(res.message)
+        toast.error(res.message || 'Có lỗi xảy ra')
       }
     } finally { setLoading(false) }
   }
@@ -87,6 +96,21 @@ export default function BookingPage() {
           <div className="mb-6 p-4 rounded-xl bg-primary/10 border border-primary/20 flex items-center gap-3 animate-scale-in">
             <CheckCircle2 className="h-5 w-5 text-primary flex-shrink-0" />
             <div><p className="text-sm font-bold text-primary">Đặt phòng thành công!</p><p className="text-xs text-primary/70 mt-0.5">Bạn sẽ nhận thông báo nhắc trước 15 phút</p></div>
+          </div>
+        )}
+
+        {/* Banner tài khoản chưa được duyệt */}
+        {(!isApproved() || accountBlocked) && (
+          <div className="mb-6 p-4 rounded-xl bg-amber-50 border border-amber-200 flex items-start gap-3">
+            <AlertCircle className="h-5 w-5 text-amber-500 flex-shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-bold text-amber-700">Tài khoản chưa được kích hoạt</p>
+              <p className="text-xs text-amber-600 mt-1 leading-relaxed">
+                {accountBlocked ? accountMsg : user?.status === 'rejected'
+                  ? 'Tài khoản của bạn đã bị từ chối. Vui lòng liên hệ admin để biết thêm chi tiết.'
+                  : 'Tài khoản đang chờ admin duyệt. Bạn sẽ nhận thông báo sau khi được duyệt.'}
+              </p>
+            </div>
           </div>
         )}
 

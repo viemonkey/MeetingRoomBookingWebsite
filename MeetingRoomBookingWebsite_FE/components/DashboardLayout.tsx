@@ -1,9 +1,9 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { CalendarPlus, CalendarDays, Clock, LogOut, Bell, Menu, X } from 'lucide-react'
+import { CalendarPlus, CalendarDays, Clock, LogOut, Bell, Menu, X, ShieldCheck } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { getUser, logoutApi, getNotificationsApi, markAllReadApi } from '@/lib/authService'
+import { getUser, logoutApi, getNotificationsApi, markAllReadApi, isAdmin } from '@/lib/authService'
 
 const navItems = [
   { label: 'Đặt phòng', icon: CalendarPlus, href: '/booking' },
@@ -61,6 +61,16 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             )
           })}
+          {isAdmin() && (
+            <>
+              <p className="px-3 mt-4 mb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30">Admin</p>
+              <Link href="/admin" onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-200 ${path === '/admin' ? 'bg-accent text-accent-foreground shadow-md' : 'text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground'}`}>
+                <ShieldCheck className="h-[18px] w-[18px]" />
+                Duyệt thành viên
+              </Link>
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t border-sidebar-border">

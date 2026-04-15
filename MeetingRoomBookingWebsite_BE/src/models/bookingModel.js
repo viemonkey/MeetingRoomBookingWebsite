@@ -11,14 +11,15 @@ const bookingSchema = new mongoose.Schema({
   timeTo:      { type: String, required: true },   // HH:MM
   note:        { type: String, default: '' },
   minutesFile: { type: String, default: null },
+  status:      { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
 }, { timestamps: true })
 
 // Index để query nhanh theo ngày + phòng
 bookingSchema.index({ date: 1, room: 1 })
 bookingSchema.index({ userId: 1 })
 
-// Virtual: tính status theo thời gian thực
-bookingSchema.virtual('status').get(function() {
+// Virtual: tính trạng thái thời gian
+bookingSchema.virtual('timeStatus').get(function() {
   const now   = new Date()
   const pad   = n => String(n).padStart(2,'0')
   const today = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`
@@ -41,7 +42,7 @@ bookingSchema.statics.findConflict = async function(room, date, timeFrom, timeTo
   const from  = toMin(timeFrom)
   const to    = toMin(timeTo)
 
-  const bookings = await this.find({ room, date })
+  const bookings = await this.find({ room, date, status: { $ne: 'rejected' } })
   return bookings.find(b => {
     if (excludeId && b._id.toString() === excludeId.toString()) return false
     return from < toMin(b.timeTo) && to > toMin(b.timeFrom)
