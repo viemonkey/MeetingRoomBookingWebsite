@@ -3,7 +3,6 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Users, Monitor, MapPin, Clock, CheckCircle2, AlertCircle } from 'lucide-react'
 import DashboardLayout from '@/components/DashboardLayout'
-import toast from 'react-hot-toast'
 import { createBookingApi, getBookingsApi, getUser, isApproved } from '@/lib/authService'
 
 const rooms = [
@@ -72,12 +71,12 @@ export default function BookingPage() {
       }
       if (res.success) {
         setSuccess(true)
-        setTimeout(() => { setSuccess(false); setStep(1); setSelectedRoom(null); setDate(''); setTimeFrom(''); setTimeTo(''); setReason(''); setNote('') }, 3000)
+        setTimeout(() => { setSuccess(false); setStep(1); setSelectedRoom(null); setDate(new Date().toISOString().split('T')[0]); setTimeFrom(''); setTimeTo(''); setReason(''); setNote('') }, 3000)
         loadBookings(date)
       } else if (res.conflict) {
         setConflict(res.conflict); setStep(2)
       } else {
-        toast.error(res.message || 'Có lỗi xảy ra')
+        alert(res.message)
       }
     } finally { setLoading(false) }
   }

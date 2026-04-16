@@ -3,29 +3,48 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { CalendarPlus, CalendarDays, Clock, LogOut, Bell, Menu, X, ShieldCheck } from 'lucide-react'
 import { useState, useEffect } from 'react'
-import { getUser, logoutApi, getNotificationsApi, markAllReadApi, isAdmin } from '@/lib/authService'
+import {
+  getUser, logoutApi, saveUser,
+  getNotificationsApi, markAllReadApi,
+  getMeApi, isAdmin,
+} from '@/lib/authService'
 
 const navItems = [
-  { label: 'Đặt phòng', icon: CalendarPlus, href: '/booking' },
-  { label: 'Lịch trình', icon: CalendarDays, href: '/schedule' },
-  { label: 'Lịch sử', icon: Clock, href: '/history' },
+  { label: 'Đặt phòng', icon: CalendarPlus,  href: '/booking'  },
+  { label: 'Lịch trình', icon: CalendarDays,  href: '/schedule' },
+  { label: 'Lịch sử',    icon: Clock,         href: '/history'  },
 ]
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const path = usePathname()
+  const path   = usePathname()
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
+  const [user,        setUser]        = useState<any>(null)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [unread, setUnread] = useState(0)
-  const [notifs, setNotifs] = useState<any[]>([])
-  const [notifOpen, setNotifOpen] = useState(false)
+  const [unread,      setUnread]      = useState(0)
+  const [notifs,      setNotifs]      = useState<any[]>([])
+  const [notifOpen,   setNotifOpen]   = useState(false)
 
   useEffect(() => {
-    setUser(getUser())
+    const u = getUser()
+    setUser(u)
     loadNotifs()
-    const t = setInterval(loadNotifs, 30000)
-    return () => clearInterval(t)
+
+    // FIX: sync user status từ server mỗi 60 giây
+    // → khi admin duyệt, user thấy ngay mà không cần logout/login lại
+    syncUser()
+
+    const notifTimer = setInterval(loadNotifs, 30000)
+    const syncTimer  = setInterval(syncUser,  60000)
+    return () => { clearInterval(notifTimer); clearInterval(syncTimer) }
   }, [])
+
+  // FIX: đồng bộ status user từ server
+  async function syncUser() {
+    const fresh = await getMeApi()
+    if (fresh) {
+      setUser(fresh)
+    }
+  }
 
   async function loadNotifs() {
     const res = await getNotificationsApi().catch(() => null)
@@ -34,7 +53,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   async function handleLogout() { await logoutApi(); router.push('/login') }
 
-  const initials = user?.fullName?.split(' ').map((n: string) => n[0]).slice(-2).join('').toUpperCase() || 'NT'
+  const initials  = user?.fullName?.split(' ').map((n: string) => n[0]).slice(-2).join('').toUpperCase() || 'NT'
   const pageTitle = navItems.find(n => n.href === path)?.label || 'Dashboard'
 
   return (
@@ -61,6 +80,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               </Link>
             )
           })}
+
           {isAdmin() && (
             <>
               <p className="px-3 mt-4 mb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/30">Admin</p>
@@ -81,7 +101,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <p className="text-[11px] text-sidebar-foreground/40">{user?.department || 'Nội bộ'}</p>
             </div>
           </div>
-          <button onClick={handleLogout} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors w-full">
+          {/* FIX: hiện badge status nếu đang pending */}
+          {user?.status === 'pending' && (
+            <div className="mb-2 px-3 py-1.5 rounded-lg bg-amber-50 border border-amber-200">
+              <p className="text-[10px] font-semibold text-amber-600">⏳ Chờ admin duyệt tài khoản</p>
+            </div>
+          )}
+          <button onClick={handleLogout}
+            className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-sidebar-foreground/50 hover:text-sidebar-foreground hover:bg-sidebar-accent transition-colors w-full">
             <LogOut className="h-4 w-4" /> Đăng xuất
           </button>
         </div>
@@ -104,10 +131,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </span>
             {/* Notification bell */}
             <div className="relative">
-              <button onClick={() => { setNotifOpen(!notifOpen); if (!notifOpen && unread > 0) markAllReadApi().then(() => setUnread(0)) }}
-                className="relative p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors">
+              <button
+                onClick={() => {
+                  setNotifOpen(!notifOpen)
+                  if (!notifOpen && unread > 0) markAllReadApi().then(() => setUnread(0))
+                }}
+                className="relative p-2 rounded-lg text-muted-foreground hover:bg-secondary transition-colors"
+              >
                 <Bell className="h-5 w-5" />
-                {unread > 0 && <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-destructive text-[9px] font-bold text-white flex items-center justify-center">{unread > 9 ? '9+' : unread}</span>}
+                {unread > 0 && (
+                  <span className="absolute top-1 right-1 h-4 w-4 rounded-full bg-destructive text-[9px] font-bold text-white flex items-center justify-center">
+                    {unread > 9 ? '9+' : unread}
+                  </span>
+                )}
               </button>
               {notifOpen && (
                 <div className="absolute right-0 top-full mt-2 w-80 bg-card border border-border rounded-xl shadow-lg z-50 overflow-hidden">
@@ -139,7 +175,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         {navItems.map(item => {
           const active = path === item.href
           return (
-            <Link key={item.href} href={item.href} className={`flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors ${active ? 'text-primary' : 'text-muted-foreground'}`}>
+            <Link key={item.href} href={item.href}
+              className={`flex flex-col items-center gap-0.5 text-[11px] font-medium transition-colors ${active ? 'text-primary' : 'text-muted-foreground'}`}>
               <item.icon className={`h-5 w-5 ${active ? 'scale-110' : ''} transition-transform`} />
               {item.label}
             </Link>
